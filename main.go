@@ -35,6 +35,14 @@ type response struct {
 	} `json:"current_observation"`
 }
 
+var heartbeat = prometheus.NewGaugeVec(
+	prometheus.GaugeOpts{
+		Name: "wunderground_station_last_updated",
+		Help: "When the station was last updated",
+	},
+	[]string{"station_id"},
+)
+
 var temperature = prometheus.NewGaugeVec(
 	prometheus.GaugeOpts{
 		Name: "thermometer_temperature_celsius",
@@ -78,6 +86,7 @@ var windSpeed = prometheus.NewGaugeVec(
 const area = "wunderground"
 
 func init() {
+	prometheus.MustRegister(heartbeat)
 	prometheus.MustRegister(temperature)
 	prometheus.MustRegister(humidity)
 	prometheus.MustRegister(precipitation)
@@ -131,6 +140,7 @@ func updater(apiKey string, stationID string, client MQTT.Client) {
 					client.Publish(topic(stationID, "precip_today_mm"), 0, true, value)
 					precipitation.WithLabelValues(stationID, area).Set(value)
 				}
+				heartbeat.WithLabelValues(stationID).SetToCurrentTime()
 			}
 		}
 		fmt.Printf("%s: Sleeping\n", stationID)
